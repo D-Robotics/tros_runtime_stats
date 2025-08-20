@@ -340,11 +340,16 @@ RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time&
 }
 
 std::string RuntimeStats::GetFullName(std::string param_name) {
+  std::string prefix_name = "";
   if (!param_.module_name.empty()) {
-    return param_.module_name + "." + param_.nm_name + "." + param_name;
-  } else {
-    return param_.nm_name + "." + param_name;
+    prefix_name += param_.module_name + ".";
   }
+  if (!param_.nm_name.empty()) {
+    prefix_name += param_.nm_name + ".";
+  }
+  
+  RCLCPP_WARN_ONCE(logger_, "prefix_name: '%s', this msg appears only once.", prefix_name.c_str());
+  return prefix_name + param_name;
 }
 
 }

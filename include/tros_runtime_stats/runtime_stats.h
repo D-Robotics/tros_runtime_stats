@@ -28,7 +28,7 @@ struct RuntimeStatsParams {
   std::string module_name = "";
   std::string nm_name = "tros_perf";
   // The params will be parsed with module_name.nm_name.[name]
-  bool enabled = false;
+  bool enabled = true;
   bool print_stat = true;
   // If enable_debug is true, the debug info will be printed with info log level
   bool enable_debug = false;
