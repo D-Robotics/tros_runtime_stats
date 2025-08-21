@@ -17,7 +17,6 @@
 #include <cfloat>
 #include <fstream>
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "std_msgs/msg/header.hpp"
 
 #ifndef TROS_RUNTIME_STATS_HPP_
@@ -75,44 +74,10 @@ enum class RuntimeStatsErrCode {
 
 struct RuntimeFrameStat;
 
-/*
-usage:
-  1. Include "runtime_stats.h"
-    #include "tros_runtime_stats/runtime_stats.h"
-
-  2. Construct an instance
-    // Pass param with module_name
-    auto sp_runtime_stat_ = 
-      std::make_shared<tros::RuntimeStats>(node, tros::RuntimeStatsParams(module_name));
-
-  3. Triger with time stamp in callback
-    // When callback start
-    sp_runtime_stat_->TrigerOn(grid->header.stamp, node->now());
-    // Do something in callback
-    // When callback end
-    sp_runtime_stat_->TrigerOff(grid->header.stamp, node->now());
-    // Pass and get the output in 'TrigerOff' API if you need it
-    std::shared_ptr<RuntimeStatsOutput> output;
-    sp_runtime_stat_->TrigerOff(grid->header.stamp, node->now(), output);
-
-  4. params
-    tros_perf:
-      enabled: True
-      print_stat: True
-      enable_debug: False # info log level
-      stats_window_sec: 5.0
-      stats_cache_len_thr: 150
-      msg_cache_timeout_thr: 1.0
-      msg_cache_len_thr: 10
-      proc_delay_warn_thr: 0.05
-      warn2file: true
-      file_path: "./perf"
-*/ 
+template <typename NodeWeakPtrType>
 class RuntimeStats {
  public:
-  RuntimeStats(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-    RuntimeStatsParams param = RuntimeStatsParams());
-  RuntimeStats(const rclcpp::Node::WeakPtr & parent,
+  RuntimeStats(const NodeWeakPtrType & parent,
     RuntimeStatsParams param = RuntimeStatsParams());
 
   ~RuntimeStats();

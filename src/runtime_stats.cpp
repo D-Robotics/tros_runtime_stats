@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "tros_runtime_stats/runtime_stats.h"
 
 namespace tros {
@@ -29,32 +30,24 @@ struct RuntimeFrameStat {
   }
 };
 
-RuntimeStats::RuntimeStats(const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+template <typename NodeWeakPtrType>
+RuntimeStats<NodeWeakPtrType>::RuntimeStats(const NodeWeakPtrType & parent,
   RuntimeStatsParams param) :
   param_(param) {
   auto node = parent.lock();
   logger_ = node->get_logger();
   param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
 
-  ParseParams<rclcpp_lifecycle::LifecycleNode::SharedPtr>(node);
+  ParseParams(node);
   Init(node->now());
 }
 
-RuntimeStats::RuntimeStats(const rclcpp::Node::WeakPtr & parent,
-  RuntimeStatsParams param) :
-  param_(param) {
-  auto node = parent.lock();
-  logger_ = node->get_logger();
-  param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
-
-  ParseParams<rclcpp::Node::SharedPtr>(node);
-  Init(node->now());
+template <typename NodeWeakPtrType>
+RuntimeStats<NodeWeakPtrType>::~RuntimeStats() {
 }
 
-RuntimeStats::~RuntimeStats() {
-}
-
-void RuntimeStats::AddParamCallback() {
+template <typename NodeWeakPtrType>
+void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
   if (!param_subscriber_) {
     RCLCPP_ERROR(logger_, "param_subscriber_ is null");
     return;
@@ -106,7 +99,8 @@ void RuntimeStats::AddParamCallback() {
   event_cb_handle_ = param_subscriber_->add_parameter_event_callback(event_cb);
 }
 
-void RuntimeStats::Init(builtin_interfaces::msg::Time stamp) {
+template <typename NodeWeakPtrType>
+void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
   msg_cache_.clear();
   while (!stats_cache_.empty()) {
     stats_cache_.pop();
@@ -145,7 +139,8 @@ void RuntimeStats::Init(builtin_interfaces::msg::Time stamp) {
   }
 }
 
-void RuntimeStats::PrintParam() {
+template <typename NodeWeakPtrType>
+void RuntimeStats<NodeWeakPtrType>::PrintParam() {
   RCLCPP_WARN(logger_,
     "\n           module_name: %s" \
     "\n               nm_name: %s" \
@@ -174,11 +169,13 @@ void RuntimeStats::PrintParam() {
   );
 }
 
-bool RuntimeStats::IsEnabled() {
+template <typename NodeWeakPtrType>
+bool RuntimeStats<NodeWeakPtrType>::IsEnabled() {
   return param_.enabled;
 }
 
-RuntimeStatsErrCode RuntimeStats::TrigerOn(const builtin_interfaces::msg::Time& msg_ts,
+template <typename NodeWeakPtrType>
+RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interfaces::msg::Time& msg_ts,
   const builtin_interfaces::msg::Time& now_ts) {
   if (!IsEnabled()) {
     RCLCPP_WARN_ONCE(logger_,
@@ -243,7 +240,8 @@ RuntimeStatsErrCode RuntimeStats::TrigerOn(const builtin_interfaces::msg::Time& 
   return RuntimeStatsErrCode::SUCCESS;
 }
 
-RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time& msg_ts,
+template <typename NodeWeakPtrType>
+RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_interfaces::msg::Time& msg_ts,
   const builtin_interfaces::msg::Time& now_ts,
   std::shared_ptr<RuntimeStatsOutput>& output) {
   if (!IsEnabled()) {
@@ -390,7 +388,8 @@ RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time&
   return RuntimeStatsErrCode::SUCCESS;
 }
 
-RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time& msg_ts,
+template <typename NodeWeakPtrType>
+RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_interfaces::msg::Time& msg_ts,
   const builtin_interfaces::msg::Time& now_ts) {
   if (!IsEnabled()) {
     RCLCPP_WARN_ONCE(logger_, "Runtime stats is not enabled, this msg appears only once.");
@@ -400,7 +399,8 @@ RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time&
   return TrigerOff(msg_ts, now_ts, output);
 }
 
-std::string RuntimeStats::GetFullName(std::string param_name) {
+template <typename NodeWeakPtrType>
+std::string RuntimeStats<NodeWeakPtrType>::GetFullName(std::string param_name) {
   std::string prefix_name = "";
   if (!param_.module_name.empty()) {
     prefix_name += param_.module_name + ".";
@@ -412,5 +412,8 @@ std::string RuntimeStats::GetFullName(std::string param_name) {
   RCLCPP_WARN_ONCE(logger_, "prefix_name: '%s', this msg appears only once.", prefix_name.c_str());
   return prefix_name + param_name;
 }
+
+template class RuntimeStats<rclcpp::Node::WeakPtr>;
+template class RuntimeStats<rclcpp_lifecycle::LifecycleNode::WeakPtr>;
 
 }

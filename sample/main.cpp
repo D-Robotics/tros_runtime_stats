@@ -19,26 +19,24 @@
 class SubNode : public rclcpp::Node {
  public:
   SubNode() : Node("sub_node") {
-    timer_ = create_wall_timer(
-      std::chrono::milliseconds(100),
-      std::bind(&SubNode::timer_callback, this));
     sub_ = create_subscription<std_msgs::msg::String>("chatter", 10,
       std::bind(&SubNode::chatter_callback, this, std::placeholders::_1)
     );
+
+    // 延迟构造
+    std::thread([this]() {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      auto param = tros::RuntimeStatsParams(
+        this->get_node_base_interface()->get_name(), true);
+      param.stats_window_sec = 1.0;
+      sp_runtime_stat_ = 
+        std::make_shared<tros::RuntimeStats<rclcpp::Node::WeakPtr>>(shared_from_this(), param);
+    }).detach();
   }
 
  private:
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_;
-  std::shared_ptr<tros::RuntimeStats> sp_runtime_stat_;
-  rclcpp::TimerBase::SharedPtr timer_;
-
-  void timer_callback() {
-    auto param = tros::RuntimeStatsParams("demo", true);
-    param.stats_window_sec = 1.0;
-    sp_runtime_stat_ = 
-      std::make_shared<tros::RuntimeStats>(shared_from_this(), param);
-    timer_->cancel();
-  }
+  std::shared_ptr<tros::RuntimeStats<rclcpp::Node::WeakPtr>> sp_runtime_stat_;
 
   void chatter_callback(const std_msgs::msg::String::SharedPtr msg) {
     RCLCPP_INFO(this->get_logger(), "I heard: '%s'", msg->data.c_str());
