@@ -55,7 +55,13 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
 
   auto event_cb = [this](const rcl_interfaces::msg::ParameterEvent & parameter_event) {
     if (!parameter_event.changed_parameters.empty()) {
-      RCLCPP_INFO(
+      if (parameter_event.node != "/" + param_.module_name) {
+        RCLCPP_INFO(logger_, "Received parameter event from node \"%s\", this node is \"%s\".",
+          parameter_event.node.c_str(),
+          param_.module_name.c_str());
+        return;
+      }
+      RCLCPP_WARN(
         logger_, "Received parameter event from node \"%s\" with %ld parameters changed",
         parameter_event.node.c_str(),
         parameter_event.changed_parameters.size());
@@ -90,7 +96,7 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
         param_.file_path = rclcpp::Parameter::from_parameter_msg(p).as_string();
       } else {
         RCLCPP_WARN(
-          logger_, "Inside event: \"%s\" is not supported",
+          logger_, "Inside event: \"%s\" is not supported in this node",
           p.name.c_str());
       }
     }
