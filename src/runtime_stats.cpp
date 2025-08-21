@@ -55,10 +55,10 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
 
   auto event_cb = [this](const rcl_interfaces::msg::ParameterEvent & parameter_event) {
     if (!parameter_event.changed_parameters.empty()) {
-      if (parameter_event.node != "/" + param_.module_name) {
+      if (parameter_event.node != "/" + param_.node_name) {
         RCLCPP_INFO(logger_, "Received parameter event from node \"%s\", this node is \"%s\".",
           parameter_event.node.c_str(),
-          param_.module_name.c_str());
+          param_.node_name.c_str());
         return;
       }
       RCLCPP_WARN(
@@ -116,14 +116,14 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
 
   RCLCPP_WARN(logger_,
     "Runtime stats in module [%s] is %s",
-    param_.module_name.c_str(),
+    param_.node_name.c_str(),
     (IsEnabled()? "enabled" : "disabled")
   );
   if (IsEnabled()) {
     PrintParam();
     if (param_.warn2file && param_.proc_delay_warn_thr > 0.0f) {
       std::string fname = param_.file_path + "/" +
-        param_.module_name + "_" +
+        param_.node_name + "_" +
         param_.nm_name + "_" +
         std::to_string(stamp.sec) +
         ".log";
@@ -131,13 +131,13 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
       if (ofs_log_ && ofs_log_.is_open()) {
         RCLCPP_WARN(logger_,
           "[%s] create file [%s] success",
-          param_.module_name.c_str(),
+          param_.node_name.c_str(),
           fname.c_str()
         );
       } else {
         RCLCPP_ERROR(logger_,
           "[%s] cannot create file in path [%s]",
-          param_.module_name.c_str(),
+          param_.node_name.c_str(),
           param_.file_path.c_str()
         );
       }
@@ -148,7 +148,7 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
 template <typename NodeWeakPtrType>
 void RuntimeStats<NodeWeakPtrType>::PrintParam() {
   RCLCPP_WARN(logger_,
-    "\n           module_name: %s" \
+    "\n           node_name: %s" \
     "\n               nm_name: %s" \
     "\n               enabled: %s" \
     "\n            print_stat: %s" \
@@ -160,7 +160,7 @@ void RuntimeStats<NodeWeakPtrType>::PrintParam() {
     "\n   proc_delay_warn_thr: %.3f" \
     "\n             warn2file: %s" \
     "\n             file_path: %s",
-    param_.module_name.c_str(),
+    param_.node_name.c_str(),
     param_.nm_name.c_str(),
     (param_.enabled? "true" : "false"),
     (param_.print_stat? "true" : "false"),
@@ -186,7 +186,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
   if (!IsEnabled()) {
     RCLCPP_WARN_ONCE(logger_,
       "[%s] Runtime stats is disabled, this msg appears only once.", 
-      param_.module_name.c_str());
+      param_.node_name.c_str());
     return RuntimeStatsErrCode::DISABLED;
   }
   // Check with ts
@@ -194,7 +194,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
   if (time_diff < 0) {
     RCLCPP_ERROR(logger_,
       "[%s] Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
-      param_.module_name.c_str(),
+      param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, now_ts.sec, now_ts.nanosec, time_diff
     );
     return RuntimeStatsErrCode::INVALID_STAMP;
@@ -207,7 +207,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
   if (param_.enable_debug) {
     RCLCPP_WARN(logger_,
       "[%s] TrigerOn with ts (%d.%d), cache size: %ld",
-      param_.module_name.c_str(),
+      param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, msg_cache_.size());
   }
   
@@ -217,7 +217,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
     auto begin = msg_cache_.begin();
     RCLCPP_WARN(logger_,
       "[%s] msg cache exceeds limit (%d), del msg with ts (%d.%d)",
-      param_.module_name.c_str(),
+      param_.node_name.c_str(),
       param_.msg_cache_len_thr,
       msg_ts.sec, msg_ts.nanosec);
     msg_cache_.erase(begin);
@@ -231,7 +231,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
         "[%s] msg ts diff (%.2f sec) exceeds limit (%.2f sec), del msg! " \
         "\n msg ts (%d.%d)" \
         "\n now ts (%d.%d)",
-        param_.module_name.c_str(),
+        param_.node_name.c_str(),
         time_diff,
         param_.msg_cache_timeout_thr,
         begin->second.msg_ts.sec, begin->second.msg_ts.nanosec,
@@ -253,7 +253,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   if (!IsEnabled()) {
     RCLCPP_WARN_ONCE(logger_,
       "[%s] Runtime stats is disabled, this msg appears only once.", 
-      param_.module_name.c_str());
+      param_.node_name.c_str());
     return RuntimeStatsErrCode::DISABLED;
   }
   output = nullptr;
@@ -261,7 +261,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   if (time_diff < 0) {
     RCLCPP_ERROR(logger_,
       "[%s] Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
-      param_.module_name.c_str(),
+      param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, now_ts.sec, now_ts.nanosec, time_diff
     );
     return RuntimeStatsErrCode::INVALID_STAMP;
@@ -272,7 +272,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   if (param_.enable_debug) {
     RCLCPP_WARN(logger_,
       "[%s] TrigerOff with ts (%d.%d), cache size: %ld",
-      param_.module_name.c_str(),
+      param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, msg_cache_.size());
   }
 
@@ -280,7 +280,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   if (val == msg_cache_.end()) {
     RCLCPP_ERROR(logger_,
       "[%s] Find ts (%d.%d) failed in msg cache",
-      param_.module_name.c_str(),
+      param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec);
     return RuntimeStatsErrCode::INVALID_STAMP;
   }
@@ -297,7 +297,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
     if (time_diff <= 0 || frame_num == 0) {
       RCLCPP_WARN(logger_,
         "[%s] Invalid time diff: %.2f, frame_num: %ld",
-        param_.module_name.c_str(),
+        param_.node_name.c_str(),
         time_diff, frame_num);
       while (!stats_cache_.empty() && rclcpp::ok()) {
         stats_cache_.pop();
@@ -346,7 +346,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
         "\n    proc: %.3f | %.3f | %.3f" \
         "\n  output: %.3f | %.3f | %.3f",
         param_.stats_window_sec,
-        param_.module_name.c_str(),
+        param_.node_name.c_str(),
         output->output_fps,
         output->input_delay_min,
         output->input_delay_max,
@@ -365,7 +365,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
         "process_delay_max [%.3f] exceeds thr [%.3f] in module [%s]",
         output->process_delay_max,
         param_.proc_delay_warn_thr,
-        param_.module_name.c_str()
+        param_.node_name.c_str()
       );
 
       if (param_.warn2file) {
@@ -378,7 +378,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
         } else {
           RCLCPP_ERROR_ONCE(logger_,
             "[%s] file is not openned in path [%s], write proc delay warn log to file failed, this log appears only once",
-            param_.module_name.c_str(),
+            param_.node_name.c_str(),
             param_.file_path.c_str()
           );
         }
@@ -408,8 +408,8 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
 template <typename NodeWeakPtrType>
 std::string RuntimeStats<NodeWeakPtrType>::GetFullName(std::string param_name) {
   std::string prefix_name = "";
-  if (!param_.module_name.empty()) {
-    prefix_name += param_.module_name + ".";
+  if (!param_.node_name.empty()) {
+    prefix_name += param_.node_name + ".";
   }
   if (!param_.nm_name.empty()) {
     prefix_name += param_.nm_name + ".";

@@ -24,9 +24,9 @@
 
 namespace tros {
 struct RuntimeStatsParams {
-  std::string module_name = "";
+  std::string node_name = "";
   std::string nm_name = "tros_perf";
-  // The params will be parsed with module_name.nm_name.[name]
+  // The params will be parsed with node_name.nm_name.[name]
   bool enabled = true;
   bool print_stat = true;
   // If enable_debug is true, the debug info will be printed with info log level
@@ -40,13 +40,13 @@ struct RuntimeStatsParams {
   // Enabled if proc_delay_warn_thr > 0
   float proc_delay_warn_thr = -1.0;
   // Whether output warnning info to file
-  // file name: file_path/[module_name]_[nm_name]_[stamp.sec].log
+  // file name: file_path/[node_name]_[nm_name]_[stamp.sec].log
   bool warn2file = true;
   std::string file_path = "./";
 
   RuntimeStatsParams() {}
   RuntimeStatsParams(std::string _module_name, bool _enabled = false) :
-    module_name(_module_name), enabled(_enabled) {}
+    node_name(_module_name), enabled(_enabled) {}
 };
 
 struct RuntimeStatsOutput {

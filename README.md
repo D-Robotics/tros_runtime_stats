@@ -77,7 +77,7 @@ ros2 run tros_runtime_stats tros_runtime_stats_sample
 ```bash
 [WARN] [1755658910.424465633] [sub_node]: Runtime stats in module [sub_node] is enabled
 [WARN] [1755658910.424968397] [sub_node]:
-           module_name: sub_node
+           node_name: sub_node
                nm_name: tros_perf
                enabled: true
             print_stat: true
@@ -123,7 +123,7 @@ ros2 run tros_runtime_stats tros_runtime_stats_sample
 
 | 参数名称 | 参数类型 | 参数作用 | 参数默认值 |
 | :--- | :--- | :--- | :--- |
-| module_name | string | 用于统计的模块名，例如"local_costmap" | "" |
+| node_name | string | 用于统计的模块名，例如"local_costmap" | "" |
 | nm_name     | string | 统计节点的namespace，例如"tros_perf" | "tros_perf" |
 | enabled     | bool   | 是否开启统计功能 | true |
 | print_stat  | bool   | 是否打印统计结果到终端 | true |
@@ -132,7 +132,7 @@ ros2 run tros_runtime_stats tros_runtime_stats_sample
 | stats_cache_len_thr | int | 缓存长度阈值，当缓存长度超过该阈值时，将删除缓存中最早的消息 | 150 |
 | msg_cache_timeout_thr | float | 消息缓存超时阈值，单位为秒 | 1.0 |
 | proc_delay_warn_thr | float | 处理延迟阈值，单位为秒，大于0有效，超过阈值时输出警告信息 | -1.0 |
-| warn_file | bool | 是否将处理超过阈值的警告信息保存到文件，文件名为`file_path/[module_name]_[nm_name]_[stamp.sec].log` | true |
+| warn_file | bool | 是否将处理超过阈值的警告信息保存到文件，文件名为`file_path/[node_name]_[nm_name]_[stamp.sec].log` | true |
 | file_path | string | 保存警告信息的文件路径 | "./" |
 
 # 在yaml配置文件中设置参数
@@ -157,4 +157,4 @@ controller_server:
         file_path: "./perf"
 ```
 
-其中`TrosLocalPlanner`为`module_name`，`tros_perf`为`nm_name`。
+其中`TrosLocalPlanner`为`node_name`，`tros_perf`为`nm_name`。
