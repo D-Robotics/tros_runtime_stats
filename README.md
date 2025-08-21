@@ -32,13 +32,13 @@ sp_runtime_stat_->TrigerOff(msg->header.stamp, this->now(), output);
 - 终端1运行消息发布：
 
 ```bash
-# ros2 topic pub -r 2 /chatter std_msgs/msg/String "{data: 'hello'}"
+ros2 topic pub -r 2 /chatter std_msgs/msg/String "{data: 'hello'}"
 ```
 
 - 终端2运行消息订阅：
 
 ```bash
-# ros2 run tros_runtime_stats tros_runtime_stats_sample
+ros2 run tros_runtime_stats tros_runtime_stats_sample
 ```
 
 - 运行后终端2输出：

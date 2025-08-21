@@ -162,6 +162,11 @@ class RuntimeStats {
     ParseParam(node, "warn2file", param_.warn2file);
     ParseParam(node, "file_path", param_.file_path);
   }
+
+  std::shared_ptr<rclcpp::ParameterEventHandler> param_subscriber_;
+  std::shared_ptr<rclcpp::ParameterEventCallbackHandle> event_cb_handle_;
+  void AddParamCallback();
+  void PrintParam();
 };
 }
 

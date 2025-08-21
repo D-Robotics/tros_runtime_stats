@@ -34,7 +34,8 @@ RuntimeStats::RuntimeStats(const rclcpp_lifecycle::LifecycleNode::WeakPtr & pare
   param_(param) {
   auto node = parent.lock();
   logger_ = node->get_logger();
-  
+  param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
+
   ParseParams<rclcpp_lifecycle::LifecycleNode::SharedPtr>(node);
   Init(node->now());
 }
@@ -44,7 +45,8 @@ RuntimeStats::RuntimeStats(const rclcpp::Node::WeakPtr & parent,
   param_(param) {
   auto node = parent.lock();
   logger_ = node->get_logger();
-  
+  param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
+
   ParseParams<rclcpp::Node::SharedPtr>(node);
   Init(node->now());
 }
@@ -52,45 +54,73 @@ RuntimeStats::RuntimeStats(const rclcpp::Node::WeakPtr & parent,
 RuntimeStats::~RuntimeStats() {
 }
 
+void RuntimeStats::AddParamCallback() {
+  if (!param_subscriber_) {
+    RCLCPP_ERROR(logger_, "param_subscriber_ is null");
+    return;
+  }
+
+  auto event_cb = [this](const rcl_interfaces::msg::ParameterEvent & parameter_event) {
+    if (!parameter_event.changed_parameters.empty()) {
+      RCLCPP_INFO(
+        logger_, "Received parameter event from node \"%s\" with %ld parameters changed",
+        parameter_event.node.c_str(),
+        parameter_event.changed_parameters.size());
+    } else {
+      return;
+    }
+
+    for (const auto& p : parameter_event.changed_parameters) {
+      RCLCPP_WARN(
+        logger_, "Inside event: \"%s\" changed to %s",
+        p.name.c_str(),
+        rclcpp::Parameter::from_parameter_msg(p).value_to_string().c_str());
+      if (GetFullName("enabled") == p.name) {
+        param_.enabled = rclcpp::Parameter::from_parameter_msg(p).as_bool();
+      } else if (GetFullName("print_stat") == p.name) { 
+        param_.print_stat = rclcpp::Parameter::from_parameter_msg(p).as_bool();
+      } else if (GetFullName("enable_debug") == p.name) { 
+        param_.enable_debug = rclcpp::Parameter::from_parameter_msg(p).as_bool();
+      } else if (GetFullName("stats_window_sec") == p.name) { 
+        param_.stats_window_sec = rclcpp::Parameter::from_parameter_msg(p).as_double();
+      } else if (GetFullName("stats_cache_len_thr") == p.name) { 
+        param_.stats_cache_len_thr = rclcpp::Parameter::from_parameter_msg(p).as_int();
+      } else if (GetFullName("msg_cache_timeout_thr") == p.name) { 
+        param_.msg_cache_timeout_thr = rclcpp::Parameter::from_parameter_msg(p).as_double();
+      } else if (GetFullName("msg_cache_len_thr") == p.name) { 
+        param_.msg_cache_len_thr = rclcpp::Parameter::from_parameter_msg(p).as_int();
+      } else if (GetFullName("proc_delay_warn_thr") == p.name) { 
+        param_.proc_delay_warn_thr = rclcpp::Parameter::from_parameter_msg(p).as_double();
+      } else if (GetFullName("warn2file") == p.name) { 
+        param_.warn2file = rclcpp::Parameter::from_parameter_msg(p).as_bool();
+      } else if (GetFullName("file_path") == p.name) { 
+        param_.file_path = rclcpp::Parameter::from_parameter_msg(p).as_string();
+      } else {
+        RCLCPP_WARN(
+          logger_, "Inside event: \"%s\" is not supported",
+          p.name.c_str());
+      }
+    }
+    PrintParam();
+  };
+  event_cb_handle_ = param_subscriber_->add_parameter_event_callback(event_cb);
+}
+
 void RuntimeStats::Init(builtin_interfaces::msg::Time stamp) {
   msg_cache_.clear();
   while (!stats_cache_.empty()) {
     stats_cache_.pop();
   }
-  
+    
+  AddParamCallback();
+
   RCLCPP_WARN(logger_,
     "Runtime stats in module [%s] is %s",
     param_.module_name.c_str(),
     (IsEnabled()? "enabled" : "disabled")
   );
   if (IsEnabled()) {
-    RCLCPP_WARN(logger_,
-      "\n           module_name: %s" \
-      "\n               nm_name: %s" \
-      "\n               enabled: %s" \
-      "\n            print_stat: %s" \
-      "\n          enable_debug: %s" \
-      "\n      stats_window_sec: %.2f" \
-      "\n   stats_cache_len_thr: %d" \
-      "\n msg_cache_timeout_thr: %.2f" \
-      "\n     msg_cache_len_thr: %d"
-      "\n   proc_delay_warn_thr: %.3f" \
-      "\n             warn2file: %s" \
-      "\n             file_path: %s",
-      param_.module_name.c_str(),
-      param_.nm_name.c_str(),
-      (param_.enabled? "true" : "false"),
-      (param_.print_stat? "true" : "false"),
-      (param_.enable_debug? "true" : "false"),
-      param_.stats_window_sec,
-      param_.stats_cache_len_thr,
-      param_.msg_cache_timeout_thr,
-      param_.msg_cache_len_thr,
-      param_.proc_delay_warn_thr,
-      (param_.warn2file? "true" : "false"),
-      param_.file_path.c_str()
-    );
-
+    PrintParam();
     if (param_.warn2file && param_.proc_delay_warn_thr > 0.0f) {
       std::string fname = param_.file_path + "/" +
         param_.module_name + "_" +
@@ -113,6 +143,35 @@ void RuntimeStats::Init(builtin_interfaces::msg::Time stamp) {
       }
     }
   }
+}
+
+void RuntimeStats::PrintParam() {
+  RCLCPP_WARN(logger_,
+    "\n           module_name: %s" \
+    "\n               nm_name: %s" \
+    "\n               enabled: %s" \
+    "\n            print_stat: %s" \
+    "\n          enable_debug: %s (warn log level)" \
+    "\n      stats_window_sec: %.2f" \
+    "\n   stats_cache_len_thr: %d" \
+    "\n msg_cache_timeout_thr: %.2f" \
+    "\n     msg_cache_len_thr: %d"
+    "\n   proc_delay_warn_thr: %.3f" \
+    "\n             warn2file: %s" \
+    "\n             file_path: %s",
+    param_.module_name.c_str(),
+    param_.nm_name.c_str(),
+    (param_.enabled? "true" : "false"),
+    (param_.print_stat? "true" : "false"),
+    (param_.enable_debug? "true" : "false"),
+    param_.stats_window_sec,
+    param_.stats_cache_len_thr,
+    param_.msg_cache_timeout_thr,
+    param_.msg_cache_len_thr,
+    param_.proc_delay_warn_thr,
+    (param_.warn2file? "true" : "false"),
+    param_.file_path.c_str()
+  );
 }
 
 bool RuntimeStats::IsEnabled() {
@@ -143,7 +202,7 @@ RuntimeStatsErrCode RuntimeStats::TrigerOn(const builtin_interfaces::msg::Time& 
     RuntimeFrameStat(msg_ts, now_ts);
 
   if (param_.enable_debug) {
-    RCLCPP_INFO(logger_,
+    RCLCPP_WARN(logger_,
       "[%s] TrigerOn with ts (%d.%d), cache size: %ld",
       param_.module_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, msg_cache_.size());
@@ -188,7 +247,9 @@ RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time&
   const builtin_interfaces::msg::Time& now_ts,
   std::shared_ptr<RuntimeStatsOutput>& output) {
   if (!IsEnabled()) {
-    RCLCPP_WARN_ONCE(logger_, "Runtime stats is not enabled, this msg appears only once.");
+    RCLCPP_WARN_ONCE(logger_,
+      "[%s] Runtime stats is disabled, this msg appears only once.", 
+      param_.module_name.c_str());
     return RuntimeStatsErrCode::DISABLED;
   }
   output = nullptr;
@@ -205,7 +266,7 @@ RuntimeStatsErrCode RuntimeStats::TrigerOff(const builtin_interfaces::msg::Time&
   auto lk = std::lock_guard(stat_mtx_);
 
   if (param_.enable_debug) {
-    RCLCPP_INFO(logger_,
+    RCLCPP_WARN(logger_,
       "[%s] TrigerOff with ts (%d.%d), cache size: %ld",
       param_.module_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, msg_cache_.size());
