@@ -225,7 +225,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
     msg_cache_.erase(begin);
   }
   // Del msg if timeout
-  while (rclcpp::ok()) {
+  while (rclcpp::ok() && !msg_cache_.empty()) {
     auto begin = msg_cache_.begin();
     float time_diff = (rclcpp::Time(now_ts) - rclcpp::Time(begin->second.msg_ts)).seconds();
     if (time_diff > param_.msg_cache_timeout_thr) {
