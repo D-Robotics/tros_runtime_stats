@@ -96,8 +96,10 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
         param_.file_path = rclcpp::Parameter::from_parameter_msg(p).as_string();
       } else {
         RCLCPP_WARN(
-          logger_, "Inside event: \"%s\" is not supported in this node",
-          p.name.c_str());
+          logger_, "Inside event: \"%s\" is not supported in this '%s'",
+          p.name.c_str(),
+          (param_.node_name + "." + param_.nm_name).c_str()
+        );
       }
     }
     PrintParam();
@@ -148,7 +150,7 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
 template <typename NodeWeakPtrType>
 void RuntimeStats<NodeWeakPtrType>::PrintParam() {
   RCLCPP_WARN(logger_,
-    "\n           node_name: %s" \
+    "\n             node_name: %s" \
     "\n               nm_name: %s" \
     "\n               enabled: %s" \
     "\n            print_stat: %s" \
