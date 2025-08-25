@@ -25,8 +25,8 @@
 namespace tros {
 struct RuntimeStatsParams {
   std::string node_name = "";
-  std::string nm_name = "tros_perf";
-  // The params will be parsed with node_name.nm_name.[name]
+  std::string ns_name = "";
+  // The params will be parsed with ns_name.node_name.tros_perf.[name]
   bool enabled = true;
   bool print_stat = true;
   // If enable_debug is true, the debug info will be printed with info log level
@@ -40,13 +40,14 @@ struct RuntimeStatsParams {
   // Enabled if proc_delay_warn_thr > 0
   float proc_delay_warn_thr = -1.0;
   // Whether output warnning info to file
-  // file name: file_path/[node_name]_[nm_name]_[stamp.sec].log
+  // file name: file_path/[ns_name]_[node_name]_[stamp.sec].log
   bool warn2file = true;
   std::string file_path = "./";
 
-  RuntimeStatsParams() {}
-  RuntimeStatsParams(std::string _module_name, bool _enabled = false) :
-    node_name(_module_name), enabled(_enabled) {}
+  RuntimeStatsParams(std::string _node_name) :
+    node_name(_node_name) {}
+  RuntimeStatsParams(std::string _node_name, bool _enabled) :
+    node_name(_node_name), enabled(_enabled) {}
 };
 
 struct RuntimeStatsOutput {
@@ -100,8 +101,11 @@ class RuntimeStats {
   std::queue<RuntimeFrameStat> stats_cache_;
   std::mutex stat_mtx_;
   std::ofstream ofs_log_;
+  std::string parent_node_name_ = "";
+  std::string module_name_ = "tros_perf";
 
  private:
+  std::string GetPrefixName();
   std::string GetFullName(std::string);
 
   template <

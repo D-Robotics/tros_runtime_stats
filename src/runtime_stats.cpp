@@ -36,6 +36,7 @@ RuntimeStats<NodeWeakPtrType>::RuntimeStats(const NodeWeakPtrType & parent,
   param_(param) {
   auto node = parent.lock();
   logger_ = node->get_logger();
+  parent_node_name_ = node->get_node_base_interface()->get_name();
   param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
 
   ParseParams(node);
@@ -55,13 +56,13 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
 
   auto event_cb = [this](const rcl_interfaces::msg::ParameterEvent & parameter_event) {
     if (!parameter_event.changed_parameters.empty()) {
-      if (parameter_event.node != "/" + param_.node_name) {
+      if (parameter_event.node != "/" + parent_node_name_) {
         RCLCPP_INFO(logger_, "Received parameter event from node \"%s\", this node is \"%s\".",
           parameter_event.node.c_str(),
-          param_.node_name.c_str());
+          parent_node_name_.c_str());
         return;
       }
-      RCLCPP_WARN(
+      RCLCPP_INFO(
         logger_, "Received parameter event from node \"%s\" with %ld parameters changed",
         parameter_event.node.c_str(),
         parameter_event.changed_parameters.size());
@@ -69,11 +70,9 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
       return;
     }
 
+    bool has_any_param_parsed = false;
     for (const auto& p : parameter_event.changed_parameters) {
-      RCLCPP_WARN(
-        logger_, "Inside event: \"%s\" changed to %s",
-        p.name.c_str(),
-        rclcpp::Parameter::from_parameter_msg(p).value_to_string().c_str());
+      bool parse_success = true;
       if (GetFullName("enabled") == p.name) {
         param_.enabled = rclcpp::Parameter::from_parameter_msg(p).as_bool();
       } else if (GetFullName("print_stat") == p.name) { 
@@ -95,14 +94,26 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
       } else if (GetFullName("file_path") == p.name) { 
         param_.file_path = rclcpp::Parameter::from_parameter_msg(p).as_string();
       } else {
-        RCLCPP_WARN(
-          logger_, "Inside event: \"%s\" is not supported in this '%s'",
+        parse_success = false;
+        RCLCPP_INFO(
+          logger_, "Inside event: \"%s\" is not supported in '%s'",
           p.name.c_str(),
-          (param_.node_name + "." + param_.nm_name).c_str()
+          (GetPrefixName()).c_str()
         );
       }
+      if (parse_success) {
+        if (!has_any_param_parsed) {
+          has_any_param_parsed = true;
+        }
+        RCLCPP_WARN(
+          logger_, "Inside event: \"%s\" changed to %s",
+          p.name.c_str(),
+          rclcpp::Parameter::from_parameter_msg(p).value_to_string().c_str());
+      }
     }
-    PrintParam();
+    if (has_any_param_parsed) {
+      PrintParam();
+    }
   };
   event_cb_handle_ = param_subscriber_->add_parameter_event_callback(event_cb);
 }
@@ -117,18 +128,23 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
   AddParamCallback();
 
   RCLCPP_WARN(logger_,
-    "Runtime stats in module [%s] is %s",
+    "Runtime stats in parent_node [%s] node [%s] ns [%s] is %s",
+    parent_node_name_.c_str(),
     param_.node_name.c_str(),
+    param_.ns_name.c_str(),
     (IsEnabled()? "enabled" : "disabled")
   );
   if (IsEnabled()) {
     PrintParam();
     if (param_.warn2file && param_.proc_delay_warn_thr > 0.0f) {
       std::string fname = param_.file_path + "/" +
-        param_.node_name + "_" +
-        param_.nm_name + "_" +
-        std::to_string(stamp.sec) +
-        ".log";
+        parent_node_name_ + "_";
+      if (!param_.ns_name.empty()) {
+        fname += param_.ns_name + "_";
+      }
+      fname = fname +
+        param_.node_name + "_";
+      fname += std::to_string(stamp.sec) + ".log";
       ofs_log_.open(fname, std::ios::out);
       if (ofs_log_ && ofs_log_.is_open()) {
         RCLCPP_WARN(logger_,
@@ -150,8 +166,8 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
 template <typename NodeWeakPtrType>
 void RuntimeStats<NodeWeakPtrType>::PrintParam() {
   RCLCPP_WARN(logger_,
+    "\n               ns_name: %s" \
     "\n             node_name: %s" \
-    "\n               nm_name: %s" \
     "\n               enabled: %s" \
     "\n            print_stat: %s" \
     "\n          enable_debug: %s (warn log level)" \
@@ -162,8 +178,8 @@ void RuntimeStats<NodeWeakPtrType>::PrintParam() {
     "\n   proc_delay_warn_thr: %.3f" \
     "\n             warn2file: %s" \
     "\n             file_path: %s",
+    param_.ns_name.c_str(),
     param_.node_name.c_str(),
-    param_.nm_name.c_str(),
     (param_.enabled? "true" : "false"),
     (param_.print_stat? "true" : "false"),
     (param_.enable_debug? "true" : "false"),
@@ -341,13 +357,15 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
     if (param_.print_stat) {
       RCLCPP_WARN(logger_,
         "perf in window [%.2f] sec: " \
-        "\n  module: %s" \
+        "\n      ns: %s" \
+        "\n    node: %s" \
         "\n out fps: %.2f" \
         "\n   delay: min   | max   | avg" \
         "\n   input: %.3f | %.3f | %.3f" \
         "\n    proc: %.3f | %.3f | %.3f" \
         "\n  output: %.3f | %.3f | %.3f",
         param_.stats_window_sec,
+        param_.ns_name.c_str(),
         param_.node_name.c_str(),
         output->output_fps,
         output->input_delay_min,
@@ -364,7 +382,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
 
     if (param_.proc_delay_warn_thr > 0 && output->process_delay_max > param_.proc_delay_warn_thr) {
       RCLCPP_WARN(logger_,
-        "process_delay_max [%.3f] exceeds thr [%.3f] in module [%s]",
+        "process_delay_max [%.3f] exceeds thr [%.3f] in node [%s]",
         output->process_delay_max,
         param_.proc_delay_warn_thr,
         param_.node_name.c_str()
@@ -373,6 +391,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
       if (param_.warn2file) {
         if (ofs_log_ && ofs_log_.is_open()) {
           ofs_log_ << msg_ts.sec << "." << msg_ts.nanosec
+            << std::setprecision(3) << std::fixed
             << "\t input_delay_max: " << output->input_delay_max
             << "\t process_delay_max: " << output->process_delay_max
             << "\t output_delay_max: " << output->output_delay_max
@@ -400,7 +419,9 @@ template <typename NodeWeakPtrType>
 RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_interfaces::msg::Time& msg_ts,
   const builtin_interfaces::msg::Time& now_ts) {
   if (!IsEnabled()) {
-    RCLCPP_WARN_ONCE(logger_, "Runtime stats is not enabled, this msg appears only once.");
+    RCLCPP_WARN_ONCE(logger_,
+      "[%s] Runtime stats is not enabled, this msg appears only once.",
+      param_.node_name.c_str());
     return RuntimeStatsErrCode::DISABLED;
   }
   std::shared_ptr<RuntimeStatsOutput> output;
@@ -408,17 +429,26 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
 }
 
 template <typename NodeWeakPtrType>
-std::string RuntimeStats<NodeWeakPtrType>::GetFullName(std::string param_name) {
+std::string RuntimeStats<NodeWeakPtrType>::GetPrefixName() {
   std::string prefix_name = "";
+  if (!param_.ns_name.empty()) {
+    prefix_name += param_.ns_name + ".";
+  }
   if (!param_.node_name.empty()) {
     prefix_name += param_.node_name + ".";
   }
-  if (!param_.nm_name.empty()) {
-    prefix_name += param_.nm_name + ".";
-  }
+  prefix_name += module_name_ + ".";
   
-  RCLCPP_WARN_ONCE(logger_, "prefix_name: '%s', this msg appears only once.", prefix_name.c_str());
-  return prefix_name + param_name;
+  RCLCPP_WARN_ONCE(logger_,
+    "[%s] prefix_name: '%s', this msg appears only once.",
+    param_.node_name.c_str(),
+    prefix_name.c_str());
+  return prefix_name;
+}
+
+template <typename NodeWeakPtrType>
+std::string RuntimeStats<NodeWeakPtrType>::GetFullName(std::string param_name) {
+  return GetPrefixName() + param_name;
 }
 
 template class RuntimeStats<rclcpp::Node::WeakPtr>;
