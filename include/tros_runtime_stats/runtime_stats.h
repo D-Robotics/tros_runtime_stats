@@ -90,6 +90,7 @@ class RuntimeStats {
     std::shared_ptr<RuntimeStatsOutput>& output);
   RuntimeStatsErrCode TrigerOff(const builtin_interfaces::msg::Time& msg_ts,
     const builtin_interfaces::msg::Time& now_ts);
+  RuntimeStatsErrCode EraseTs(const builtin_interfaces::msg::Time& msg_ts);
 
   bool IsEnabled();
 

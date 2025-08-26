@@ -211,7 +211,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
   auto time_diff = (rclcpp::Time(now_ts) - rclcpp::Time(msg_ts)).seconds();
   if (time_diff < 0) {
     RCLCPP_ERROR(logger_,
-      "[%s] Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
+      "[%s] TrigerOn Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
       param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, now_ts.sec, now_ts.nanosec, time_diff
     );
@@ -278,7 +278,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   auto time_diff = (rclcpp::Time(now_ts) - rclcpp::Time(msg_ts)).seconds();
   if (time_diff < 0) {
     RCLCPP_ERROR(logger_,
-      "[%s] Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
+      "[%s] TrigerOff Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
       param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, now_ts.sec, now_ts.nanosec, time_diff
     );
@@ -297,7 +297,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   auto val = msg_cache_.find(rclcpp::Time(msg_ts).seconds());
   if (val == msg_cache_.end()) {
     RCLCPP_ERROR(logger_,
-      "[%s] Find ts (%d.%d) failed in msg cache",
+      "[%s] TrigerOff Find ts (%d.%d) failed in msg cache",
       param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec);
     return RuntimeStatsErrCode::INVALID_STAMP;
@@ -426,6 +426,35 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
   }
   std::shared_ptr<RuntimeStatsOutput> output;
   return TrigerOff(msg_ts, now_ts, output);
+}
+
+template <typename NodeWeakPtrType>
+RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::EraseTs(const builtin_interfaces::msg::Time& msg_ts) {
+  if (!IsEnabled()) {
+    RCLCPP_WARN_ONCE(logger_,
+      "[%s] Runtime stats is not enabled, this msg appears only once.",
+      param_.node_name.c_str());
+    return RuntimeStatsErrCode::DISABLED;
+  }
+  
+  auto lk = std::lock_guard(stat_mtx_);
+  if (param_.enable_debug) {
+    RCLCPP_WARN(logger_,
+      "[%s] EraseTs with ts (%d.%d), cache size: %ld",
+      param_.node_name.c_str(),
+      msg_ts.sec, msg_ts.nanosec, msg_cache_.size());
+  }
+  auto val = msg_cache_.find(rclcpp::Time(msg_ts).seconds());
+  if (val == msg_cache_.end()) {
+    // RCLCPP_ERROR(logger_,
+    //   "[%s] EraseTs Find ts (%d.%d) failed in msg cache",
+    //   param_.node_name.c_str(),
+    //   msg_ts.sec, msg_ts.nanosec);
+    return RuntimeStatsErrCode::INVALID_STAMP;
+  }
+  msg_cache_.erase(val);
+
+  return RuntimeStatsErrCode::SUCCESS;
 }
 
 template <typename NodeWeakPtrType>
