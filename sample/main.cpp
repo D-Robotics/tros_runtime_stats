@@ -27,7 +27,7 @@ class SubNode : public rclcpp::Node {
     std::thread([this]() {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       auto param = tros::RuntimeStatsParams(
-        this->get_node_base_interface()->get_name(), true);
+        this->get_name(), true);
       param.stats_window_sec = 1.0;
       sp_runtime_stat_ = 
         std::make_shared<tros::RuntimeStats<rclcpp::Node::WeakPtr>>(shared_from_this(), param);

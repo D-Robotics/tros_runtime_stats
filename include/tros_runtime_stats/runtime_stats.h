@@ -18,6 +18,7 @@
 #include <fstream>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/header.hpp"
+#include "diagnostic_msgs/msg/diagnostic_array.hpp"
 
 #ifndef TROS_RUNTIME_STATS_HPP_
 #define TROS_RUNTIME_STATS_HPP_
@@ -29,6 +30,7 @@ struct RuntimeStatsParams {
   // The params will be parsed with ns_name.node_name.tros_perf.[name]
   bool enabled = true;
   bool print_stat = true;
+  bool publish_stat = true;
   // If enable_debug is true, the debug info will be printed with info log level
   bool enable_debug = false;
   float stats_window_sec = 5.0;
@@ -104,6 +106,9 @@ class RuntimeStats {
   std::ofstream ofs_log_;
   std::string parent_node_name_ = "";
   std::string module_name_ = "tros_perf";
+
+  std::string topic_name_ = "tros_perf";
+  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr pub_stats_ = nullptr;
 
  private:
   std::string GetPrefixName();

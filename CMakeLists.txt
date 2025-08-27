@@ -12,6 +12,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
 
 include_directories(include)
 
@@ -25,6 +26,7 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   std_msgs
   rclcpp_lifecycle
+  diagnostic_msgs
 )
 
 target_link_libraries(${PROJECT_NAME}_sample PRIVATE ${PROJECT_NAME})
@@ -54,5 +56,11 @@ install(FILES
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  rclcpp_lifecycle
+  diagnostic_msgs
+)
 
 ament_package()

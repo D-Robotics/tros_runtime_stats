@@ -36,9 +36,14 @@ RuntimeStats<NodeWeakPtrType>::RuntimeStats(const NodeWeakPtrType & parent,
   param_(param) {
   auto node = parent.lock();
   logger_ = node->get_logger();
-  parent_node_name_ = node->get_node_base_interface()->get_name();
+  parent_node_name_ = node->get_name();
   param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
 
+  if (IsEnabled() && param_.publish_stat) {
+    RCLCPP_WARN(logger_, "[%s] Publish stat with topic name [%s]",
+      param_.node_name.c_str(), topic_name_.c_str());
+    pub_stats_ = rclcpp::create_publisher<diagnostic_msgs::msg::DiagnosticArray>(node, topic_name_, 1);
+  }
   ParseParams(node);
   Init(node->now());
 }
@@ -170,6 +175,7 @@ void RuntimeStats<NodeWeakPtrType>::PrintParam() {
     "\n             node_name: %s" \
     "\n               enabled: %s" \
     "\n            print_stat: %s" \
+    "\n          publish_stat: %s"
     "\n          enable_debug: %s (warn log level)" \
     "\n      stats_window_sec: %.2f" \
     "\n   stats_cache_len_thr: %d" \
@@ -182,6 +188,7 @@ void RuntimeStats<NodeWeakPtrType>::PrintParam() {
     param_.node_name.c_str(),
     (param_.enabled? "true" : "false"),
     (param_.print_stat? "true" : "false"),
+    (param_.publish_stat? (std::string("true (topic name `" + topic_name_ + "`)").data()) : "false"),
     (param_.enable_debug? "true" : "false"),
     param_.stats_window_sec,
     param_.stats_cache_len_thr,
@@ -246,7 +253,7 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
     float time_diff = (rclcpp::Time(now_ts) - rclcpp::Time(begin->second.msg_ts)).seconds();
     if (time_diff > param_.msg_cache_timeout_thr) {
       RCLCPP_WARN(logger_,
-        "[%s] msg ts diff (%.2f sec) exceeds limit (%.2f sec), del msg! " \
+        "[%s] msg ts diff (%.2f sec) exceeds limit (%.2f sec), del msg:" \
         "\n msg ts (%d.%d)" \
         "\n now ts (%d.%d)",
         param_.node_name.c_str(),
@@ -378,6 +385,41 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOff(const builtin_inter
         output->output_delay_max,
         output->output_delay_avg
       );
+    }
+    if (param_.publish_stat && pub_stats_ && pub_stats_->get_subscription_count() > 0) {
+      auto msg = std::make_unique<diagnostic_msgs::msg::DiagnosticArray>();
+      msg->header.stamp = msg_ts;
+      diagnostic_msgs::msg::DiagnosticStatus status;
+      status.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+      status.name = "tros_perf";
+      status.message = param_.ns_name + "." + param_.node_name + ", delay(min max avg)";
+      {
+        diagnostic_msgs::msg::KeyValue value;
+        value.key = "input";
+        std::stringstream ss;
+        ss << std::setprecision(3) << std::fixed << output->input_delay_min << " | " << output->input_delay_max << " | " << output->input_delay_avg;
+        value.value = ss.str();
+        status.values.push_back(value);
+      }
+      {
+        diagnostic_msgs::msg::KeyValue value;
+        value.key = "proc";
+        std::stringstream ss;
+        ss << std::setprecision(3) << std::fixed << output->process_delay_min << " | " << output->process_delay_max << " | " << output->process_delay_avg;
+        value.value = ss.str();
+        status.values.push_back(value);
+      }
+      {
+        diagnostic_msgs::msg::KeyValue value;
+        value.key = "output";
+        std::stringstream ss;
+        ss << std::setprecision(3) << std::fixed << output->output_delay_min << " | " << output->output_delay_max << " | " << output->output_delay_avg;
+        value.value = ss.str();
+        status.values.push_back(value);
+      }
+
+      msg->status.push_back(status);
+      pub_stats_->publish(std::move(msg));
     }
 
     if (param_.proc_delay_warn_thr > 0 && output->process_delay_max > param_.proc_delay_warn_thr) {
