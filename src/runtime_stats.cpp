@@ -62,7 +62,7 @@ void RuntimeStats<NodeWeakPtrType>::AddParamCallback() {
   auto event_cb = [this](const rcl_interfaces::msg::ParameterEvent & parameter_event) {
     if (!parameter_event.changed_parameters.empty()) {
       if (parameter_event.node != "/" + parent_node_name_) {
-        RCLCPP_INFO(logger_, "Received parameter event from node \"%s\", this node is \"%s\".",
+        RCLCPP_DEBUG(logger_, "Received parameter event from node \"%s\", this node is \"%s\".",
           parameter_event.node.c_str(),
           parent_node_name_.c_str());
         return;
