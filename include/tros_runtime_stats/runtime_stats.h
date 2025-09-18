@@ -59,6 +59,8 @@ struct RuntimeStatsOutput {
 
   float process_delay_min = FLT_MAX;
   float process_delay_max = FLT_MIN;
+  builtin_interfaces::msg::Time delay_max_msg_ts;
+
   float process_delay_avg = 0;
 
   float output_delay_min = FLT_MAX;
