@@ -171,6 +171,7 @@ void RuntimeStats<NodeWeakPtrType>::Init(builtin_interfaces::msg::Time stamp) {
 template <typename NodeWeakPtrType>
 void RuntimeStats<NodeWeakPtrType>::PrintParam() {
   RCLCPP_WARN(logger_,
+    "Run time stats param:" \
     "\n               ns_name: %s" \
     "\n             node_name: %s" \
     "\n               enabled: %s" \
