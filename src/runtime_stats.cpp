@@ -39,13 +39,21 @@ RuntimeStats<NodeWeakPtrType>::RuntimeStats(const NodeWeakPtrType & parent,
   parent_node_name_ = node->get_name();
   param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(node);
 
-  if (IsEnabled() && param_.publish_stat) {
-    RCLCPP_WARN(logger_, "[%s][%s] Publish stat with topic name [%s]",
-      param_.node_name.c_str(), module_name_.c_str(), topic_name_.c_str());
-    pub_stats_ = rclcpp::create_publisher<diagnostic_msgs::msg::DiagnosticArray>(node, topic_name_, 1);
-  }
   ParseParams(node);
   Init(node->now());
+  
+  if (IsEnabled()) {
+    RCLCPP_WARN(logger_, "RuntimeStats is enabled in [%s][%s]",
+      param_.node_name.c_str(), module_name_.c_str());
+    if (param_.publish_stat) {
+      RCLCPP_WARN(logger_, "[%s][%s] Publish stat with topic name [%s]",
+        param_.node_name.c_str(), module_name_.c_str(), topic_name_.c_str());
+      pub_stats_ = rclcpp::create_publisher<diagnostic_msgs::msg::DiagnosticArray>(node, topic_name_, 1);
+    }
+  } else {
+    RCLCPP_WARN(logger_, "RuntimeStats is disabled in [%s][%s]",
+      param_.node_name.c_str(), module_name_.c_str());
+  }
 }
 
 template <typename NodeWeakPtrType>
