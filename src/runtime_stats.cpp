@@ -226,12 +226,12 @@ RuntimeStatsErrCode RuntimeStats<NodeWeakPtrType>::TrigerOn(const builtin_interf
   // Check with ts
   auto time_diff = (rclcpp::Time(now_ts) - rclcpp::Time(msg_ts)).seconds();
   if (time_diff < 0) {
-    RCLCPP_ERROR(logger_,
+    RCLCPP_INFO(logger_,
       "[%s] TrigerOn Check time failed! ts in msg (%d.%d) is later than now (%d.%d), time diff: %.2f",
       param_.node_name.c_str(),
       msg_ts.sec, msg_ts.nanosec, now_ts.sec, now_ts.nanosec, time_diff
     );
-    return RuntimeStatsErrCode::INVALID_STAMP;
+    // return RuntimeStatsErrCode::INVALID_STAMP;
   }
 
   auto lk = std::lock_guard(stat_mtx_);
